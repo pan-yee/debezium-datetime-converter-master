@@ -7,6 +7,7 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.Properties;
 import java.util.function.Consumer;
 
@@ -64,16 +65,13 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
         if ("DATE".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.date.int64");
             converter = this::convertDate;
-        }
-        if ("TIME".equals(sqlType)) {
+        }else if ("TIME".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.time.int64");
             converter = this::convertTime;
-        }
-        if ("DATETIME".equals(sqlType)) {
+        }else if ("DATETIME".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.datetime.int64");
             converter = this::convertDateTime;
-        }
-        if ("TIMESTAMP".equals(sqlType)) {
+        }else if ("TIMESTAMP".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.timestamp.int64");
             converter = this::convertTimestamp;
         }
@@ -83,27 +81,24 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
         }
     }
 
-    private Long convertDate(Object input) {
+    private Object convertDate(Object input) {
         if (input instanceof LocalDate) {
-
             LocalDate localDate = (LocalDate) input;
             return localDate.atStartOfDay(ZoneOffset.of(timestampZoneId.getId())).toInstant().toEpochMilli();
-
-        }
-        if (input instanceof Integer) {
+        }else if (input instanceof Integer) {
             LocalDate localDate = LocalDate.ofEpochDay((Integer) input);
             return localDate.atStartOfDay(ZoneOffset.of(timestampZoneId.getId())).toInstant().toEpochMilli();
         }
-        return null;
+        return input;
     }
 
-    private Long convertTime(Object input) {
+    private Object convertTime(Object input) {
         if (input instanceof Duration) {
             Duration duration = (Duration) input;
             long seconds = duration.getSeconds();
             return seconds * 1000;
         }
-        return null;
+        return input;
     }
 
     /**
@@ -112,22 +107,45 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
      * @param input
      * @return
      */
-    public Long convertDateTime(Object input) {
+    public Object convertDateTime(Object input) {
         if (input instanceof LocalDateTime) {
             LocalDateTime localDateTime = (LocalDateTime) input;
-            return localDateTime.toInstant(ZoneOffset.of(timestampZoneId.getId())).toEpochMilli();
+            final long epochMilli = localDateTime.toInstant(ZoneOffset.of(timestampZoneId.getId())).toEpochMilli();
+            if(log.isDebugEnabled()){
+                log.debug("convertDateTime LocalDateTime input:{}",epochMilli);
+            }
+            return epochMilli;
+        }else  if (input instanceof Date) {
+            Date date = (Date) input;
+            final ZoneId timestampZoneIdUTC = ZoneId.of("UTC");
+            final long epochMilli = Instant.ofEpochMilli(date.getTime()).atZone(timestampZoneIdUTC).toLocalDateTime().atZone(timestampZoneId).toInstant().toEpochMilli();
+            if(log.isDebugEnabled()) {
+                log.debug("convertDateTime Date input:{}", epochMilli);
+            }
+            return epochMilli;
         }
-        return null;
+        if(log.isDebugEnabled()) {
+            log.debug("convertDateTime input:{}", input);
+        }
+        return input;
     }
 
-    private Long convertTimestamp(Object input) {
+    private Object convertTimestamp(Object input) {
         if (input instanceof ZonedDateTime) {
             // mysql的timestamp会转成UTC存储，这里的zonedDatetime都是UTC时间
             ZonedDateTime zonedDateTime = (ZonedDateTime) input;
             LocalDateTime localDateTime = zonedDateTime.toLocalDateTime();
             return localDateTime.toInstant(ZoneOffset.of(timestampZoneId.getId())).toEpochMilli();
         }
-        return null;
+        return input;
     }
 
+    public static void main(String[] args) {
+        final ZoneId timestampZoneId = ZoneId.of("+08:00");
+        final ZoneId timestampZoneIdUTC = ZoneId.of("UTC");
+        final Long old = 1662539067000L;
+        final Date date = new Date(old);
+        final long l = Instant.ofEpochMilli(date.getTime()).atZone(timestampZoneIdUTC).toLocalDateTime().atZone(timestampZoneId).toInstant().toEpochMilli();
+        System.out.println("原始时间long："+old+"，转换后时间long："+l);
+    }
 }
