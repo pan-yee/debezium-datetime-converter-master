@@ -5,6 +5,7 @@ import io.debezium.spi.converter.RelationalColumn;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
+import java.sql.Timestamp;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -62,13 +63,13 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
         String sqlType = column.typeName().toUpperCase();
         SchemaBuilder schemaBuilder = null;
         Converter converter = null;
-        if ("DATE".equals(sqlType)) {
+      /* if ("DATE".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.date.int64");
             converter = this::convertDate;
         }else if ("TIME".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.time.int64");
             converter = this::convertTime;
-        }else if ("DATETIME".equals(sqlType)) {
+        }else*/  if ("DATETIME".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.datetime.int64");
             converter = this::convertDateTime;
         }else if ("TIMESTAMP".equals(sqlType)) {
@@ -131,11 +132,15 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
     }
 
     private Object convertTimestamp(Object input) {
+        log.info("convertTimestamp:{}",input.getClass());
         if (input instanceof ZonedDateTime) {
             // mysql的timestamp会转成UTC存储，这里的zonedDatetime都是UTC时间
             ZonedDateTime zonedDateTime = (ZonedDateTime) input;
-            LocalDateTime localDateTime = zonedDateTime.toLocalDateTime();
-            return localDateTime.toInstant(ZoneOffset.of(timestampZoneId.getId())).toEpochMilli();
+           return zonedDateTime.withZoneSameInstant(timestampZoneId).toInstant().toEpochMilli();
+        }else  if (input instanceof Timestamp) {
+            Timestamp timestamp = (Timestamp) input;
+            log.info("convertTimestamp-time:{}",timestamp.getTime());
+            return timestamp.getTime();
         }
         return input;
     }
