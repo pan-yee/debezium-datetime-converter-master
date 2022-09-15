@@ -97,14 +97,18 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
     }
 
     private Object convertTimestamp(Object input) {
-        log.info("convertTimestamp:{}",input.getClass());
+        if(log.isDebugEnabled()) {
+            log.debug("convertTimestamp:{}", input.getClass());
+        }
         if (input instanceof ZonedDateTime) {
             // mysql的timestamp会转成UTC存储，这里的zonedDatetime都是UTC时间
             ZonedDateTime zonedDateTime = (ZonedDateTime) input;
            return zonedDateTime.withZoneSameInstant(timestampZoneId).toInstant().toEpochMilli();
         }else  if (input instanceof Timestamp) {
             Timestamp timestamp = (Timestamp) input;
-            log.info("convertTimestamp-time:{}",timestamp.getTime());
+            if(log.isDebugEnabled()) {
+                log.debug("convertTimestamp-time:{}", timestamp.getTime());
+            }
             return timestamp.getTime();
         }
         return input;
