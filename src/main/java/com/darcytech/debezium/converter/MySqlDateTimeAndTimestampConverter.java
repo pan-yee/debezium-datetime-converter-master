@@ -7,7 +7,6 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 
 import java.sql.Timestamp;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Properties;
 import java.util.function.Consumer;
@@ -27,7 +26,7 @@ import java.util.function.Consumer;
  * @see io.debezium.connector.mysql.converters.TinyIntOneToBooleanConverter
  */
 @Slf4j
-public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+public class MySqlDateTimeAndTimestampConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
 
     private ZoneId timestampZoneId = ZoneId.systemDefault();
 
