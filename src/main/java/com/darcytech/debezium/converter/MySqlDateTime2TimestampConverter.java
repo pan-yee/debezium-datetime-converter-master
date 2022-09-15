@@ -29,19 +29,10 @@ import java.util.function.Consumer;
 @Slf4j
 public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
 
-    private DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE;
-    private DateTimeFormatter timeFormatter = DateTimeFormatter.ISO_TIME;
-    private DateTimeFormatter datetimeFormatter = DateTimeFormatter.ISO_DATE_TIME;
-    private DateTimeFormatter timestampFormatter = DateTimeFormatter.ISO_DATE_TIME;
-
     private ZoneId timestampZoneId = ZoneId.systemDefault();
 
     @Override
     public void configure(Properties props) {
-        readProps(props, "format.date", p -> dateFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.time", p -> timeFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.datetime", p -> datetimeFormatter = DateTimeFormatter.ofPattern(p));
-        readProps(props, "format.timestamp", p -> timestampFormatter = DateTimeFormatter.ofPattern(p));
         readProps(props, "format.timestamp.zone", z -> timestampZoneId = ZoneId.of(z));
     }
 
@@ -63,13 +54,7 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
         String sqlType = column.typeName().toUpperCase();
         SchemaBuilder schemaBuilder = null;
         Converter converter = null;
-      /* if ("DATE".equals(sqlType)) {
-            schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.date.int64");
-            converter = this::convertDate;
-        }else if ("TIME".equals(sqlType)) {
-            schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.time.int64");
-            converter = this::convertTime;
-        }else*/  if ("DATETIME".equals(sqlType)) {
+     if ("DATETIME".equals(sqlType)) {
             schemaBuilder = SchemaBuilder.int64().optional().name("com.darcytech.debezium.datetime.int64");
             converter = this::convertDateTime;
         }else if ("TIMESTAMP".equals(sqlType)) {
@@ -82,26 +67,6 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
         }
     }
 
-    private Object convertDate(Object input) {
-        if (input instanceof LocalDate) {
-            LocalDate localDate = (LocalDate) input;
-            return localDate.atStartOfDay(ZoneOffset.of(timestampZoneId.getId())).toInstant().toEpochMilli();
-        }else if (input instanceof Integer) {
-            LocalDate localDate = LocalDate.ofEpochDay((Integer) input);
-            return localDate.atStartOfDay(ZoneOffset.of(timestampZoneId.getId())).toInstant().toEpochMilli();
-        }
-        return input;
-    }
-
-    private Object convertTime(Object input) {
-        if (input instanceof Duration) {
-            Duration duration = (Duration) input;
-            long seconds = duration.getSeconds();
-            return seconds * 1000;
-        }
-        return input;
-    }
-
     /**
      * DateTime转成时间戳long类型
      *
@@ -111,7 +76,7 @@ public class MySqlDateTime2TimestampConverter implements CustomConverter<SchemaB
     public Object convertDateTime(Object input) {
         if (input instanceof LocalDateTime) {
             LocalDateTime localDateTime = (LocalDateTime) input;
-            final long epochMilli = localDateTime.toInstant(ZoneOffset.of(timestampZoneId.getId())).toEpochMilli();
+            final long epochMilli = localDateTime.atZone(timestampZoneId).toInstant().toEpochMilli();
             if(log.isDebugEnabled()){
                 log.debug("convertDateTime LocalDateTime input:{}",epochMilli);
             }
